@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Localização</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --secondary: #f1f5f9;
+      --secondary-hover: #e2e8f0;
+      --border: #cbd5e1;
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+      --error-bg: #fee2e2;
+      --error-text: #991b1b;
+      --radius: 12px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 440px;
+      padding: 32px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid #e2e8f0;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin-bottom: 6px;
+    }
+
+    p.subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      background-color: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .coords-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.99);
+    }
+
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .btn-geo {
+      background-color: var(--secondary);
+      color: var(--text-main);
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .btn-geo:hover:not(:disabled) {
+      background-color: var(--secondary-hover);
+    }
+
+    .btn-submit {
+      background-color: var(--primary);
+      color: #ffffff;
+      margin-top: 8px;
+    }
+
+    .btn-submit:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+    }
+
+    .status-message {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: none;
+      line-height: 1.4;
+    }
+
+    .status-message.success {
+      display: block;
+      background-color: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    .status-message.error {
+      display: block;
+      background-color: var(--error-bg);
+      color: var(--error-text);
+    }
+
+    /* Spinner simples para feedback de carregamento */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      display: none;
+    }
+
+    .loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="container">
+    <header>
+      <h1>Registro de Ponto</h1>
+      <p class="subtitle">Informe o nome do local e capture suas coordenadas geográficas para envio.</p>
+    </header>
+
+    <form id="customGoogleForm">
+      <div class="form-group">
+        <label for="local">Nome do Local</label>
+        <input 
+          type="text" 
+          id="local" 
+          name="entry.1350129950" 
+          placeholder="Ex: Matriz, Obra Centro, Ponto 01..." 
+          required
+        >
+      </div>
+
+      <button type="button" id="btnGetLocation" class="btn btn-geo">
+        <span class="spinner" id="geoSpinner"></span>
+        <span id="geoBtnText">📍 Capturar Minha Localização Atual</span>
+      </button>
+
+      <div class="coords-grid">
+        <div class="form-group">
+          <label for="latitude">Latitude</label>
+          <input 
+            type="text" 
+            id="latitude" 
+            name="entry.718109587" 
+            placeholder="-22.3145" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="longitude">Longitude</label>
+          <input 
+            type="text" 
+            id="longitude" 
+            name="entry.964245664" 
+            placeholder="-49.0587" 
+            required
+          >
+        </div>
+      </div>
+
+      <button type="submit" id="btnSubmit" class="btn btn-submit">
+        <span class="spinner" id="submitSpinner"></span>
+        <span id="submitBtnText">Enviar Dados</span>
+      </button>
+
+      <div id="statusMessage" class="status-message" role="alert"></div>
+    </form>
+  </main>
+
+  <script>
+    const FORM_ACTION_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfWxeVvkQ0Y3T5msuFVOmS5in4ybYmw86oVJk5J6J8R_8BKyw/formResponse';
+
+    const form = document.getElementById('customGoogleForm');
+    const inputLocal = document.getElementById('local');
+    const inputLat = document.getElementById('latitude');
+    const inputLng = document.getElementById('longitude');
+    
+    const btnGeo = document.getElementById('btnGetLocation');
+    const geoBtnText = document.getElementById('geoBtnText');
+    
+    const btnSubmit = document.getElementById('btnSubmit');
+    const submitBtnText = document.getElementById('submitBtnText');
+    const statusMessage = document.getElementById('statusMessage');
+
+    // Função auxiliar para exibir alertas na interface
+    function showStatus(message, type) {
+      statusMessage.textContent = message;
+      statusMessage.className = `status-message ${type}`;
+    }
+
+    // 1. Preenche automaticamente via Query String caso a URL do GitHub Pages receba parâmetros
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('local')) inputLocal.value = params.get('local');
+      if (params.has('lat')) inputLat.value = params.get('lat');
+      if (params.has('lng')) inputLng.value = params.get('lng');
+    });
+
+    // 2. Captura de Geolocalização via API nativa do navegador
+    btnGeo.addEventListener('click', () => {
+      if (!('geolocation' in navigator)) {
+        showStatus('Seu navegador não suporta geolocalização.', 'error');
+        return;
+      }
+
+      btnGeo.disabled = true;
+      btnGeo.classList.add('loading');
+      geoBtnText.textContent = 'Obtendo coordenadas...';
+      statusMessage.style.display = 'none';
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          inputLat.value = position.coords.latitude.toFixed(6);
+          inputLng.value = position.coords.longitude.toFixed(6);
+          
+          btnGeo.disabled = false;
+          btnGeo.classList.remove('loading');
+          geoBtnText.textContent = '📍 Atualizar Localização';
+          showStatus('Coordenadas capturadas com sucesso!', 'success');
+        },
+        (error) => {
+          btnGeo.disabled = false;
+          btnGeo.classList.remove('loading');
+          geoBtnText.textContent = '📍 Capturar Minha Localização Atual';
+
+          let msg = 'Não foi possível obter a localização.';
+          if (error.code === error.PERMISSION_DENIED) {
+            msg = 'Permissão de localização negada. Habilite o GPS no navegador ou preencha manualmente.';
+          } else if (error.code === error.TIMEOUT) {
+            msg = 'Tempo esgotado ao buscar sinal de GPS.';
+          }
+          showStatus(msg, 'error');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+
+    // 3. Submissão assíncrona para o endpoint formResponse do Google Forms
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      btnSubmit.disabled = true;
+      btnSubmit.classList.add('loading');
+      submitBtnText.textContent = 'Enviando...';
+      statusMessage.style.display = 'none';
+
+      const formData = new FormData(form);
+
+      try {
+        // O modo 'no-cors' é obrigatório para requisições client-side diretas ao Google Forms
+        await fetch(FORM_ACTION_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: formData
+        });
+
+        showStatus('Dados registrados com sucesso na planilha!', 'success');
+        form.reset();
+        geoBtnText.textContent = '📍 Capturar Minha Localização Atual';
+      } catch (error) {
+        console.error('Erro no envio:', error);
+        showStatus('Falha de rede ao enviar os dados. Verifique sua conexão e tente novamente.', 'error');
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.classList.remove('loading');
+        submitBtnText.textContent = 'Enviar Dados';
+      }
+    });
+  </script>
+</body>
+</html>
