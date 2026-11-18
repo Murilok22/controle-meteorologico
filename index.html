@@ -2,352 +2,1383 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro de Localização</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000" media="(max-width: 959.98px)">
+  <meta name="theme-color" content="#000000" media="(min-width: 960px)">
+  <title>GenMet | Coleta de Dados Meteorológicos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..700&family=Inter:wght@400..700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-color: #f8fafc;
-      --card-bg: #ffffff;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --secondary: #f1f5f9;
-      --secondary-hover: #e2e8f0;
-      --border: #cbd5e1;
-      --success-bg: #dcfce7;
-      --success-text: #166534;
-      --error-bg: #fee2e2;
-      --error-text: #991b1b;
-      --radius: 12px;
-      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-    }
+    /* =========================================================
+       Base compartilhada
+       ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    .spinner {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      display: none;
+      animation: spin .7s linear infinite;
     }
+    .loading .spinner { display: inline-block; }
+    .loading .icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    .container {
-      background: var(--card-bg);
-      width: 100%;
-      max-width: 440px;
-      padding: 32px;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      border: 1px solid #e2e8f0;
-    }
-
-    header {
-      margin-bottom: 24px;
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      margin-bottom: 6px;
-    }
-
-    p.subtitle {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    .form-group {
-      margin-bottom: 18px;
-    }
-
-    label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 600;
-      margin-bottom: 6px;
-      color: var(--text-main);
-    }
-
-    input {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 0.95rem;
-      color: var(--text-main);
-      background-color: #fff;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-    }
-
-    .coords-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); white-space: nowrap;
     }
 
     .btn {
       width: 100%;
-      padding: 12px 16px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      transition: background-color 0.2s, transform 0.1s;
+      gap: 10px;
+      font: inherit;
+      border: none;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:disabled { cursor: progress; }
+    .btn svg { width: 18px; height: 18px; flex: none; }
+
+    .status-message { display: none; }
+    .status-message.success, .status-message.error { display: flex; }
+
+    /* Elementos exclusivos de cada layout */
+    .site-header, .map-wrap, .header-date { display: none; }
+
+
+    /* =========================================================
+       Marcador (compartilhado; cores por layout)
+       ========================================================= */
+    .pin {
+      --core: #000; --dot: #fff; --halo: rgba(0,0,0,0.14);
+      --tag-bg: #000; --tag-fg: #fff; --tag-sub: #AFAFAF;
+      position: relative; width: 22px; height: 22px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .pin .core {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: var(--core);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+      display: grid; place-items: center;
+    }
+    .pin .core::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dot); }
+    .pin .halo {
+      position: absolute; inset: -14px; border-radius: 50%;
+      background: var(--halo);
+      animation: halo 2s cubic-bezier(.2,.8,.4,1) infinite;
+    }
+    @keyframes halo { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+    .pin .tag {
+      position: absolute; left: 50%; bottom: calc(100% + 12px);
+      transform: translateX(-50%);
+      padding: 8px 12px; border-radius: 10px;
+      background: var(--tag-bg); color: var(--tag-fg);
+      font-family: var(--font-ui); font-size: 13px; font-weight: 500; line-height: 1.2;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .pin .tag small { display: block; margin-top: 2px; color: var(--tag-sub); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .pin .tag::after {
+      content: ""; position: absolute; left: 50%; top: 100%;
+      transform: translateX(-50%);
+      border: 6px solid transparent; border-top-color: var(--tag-bg);
     }
 
-    .btn:active {
-      transform: scale(0.99);
+    .sheet[hidden], .sheet-msg[hidden] { display: none !important; }
+
+    /* =========================================================
+       CELULAR — vidro líquido
+       ========================================================= */
+    @media (max-width: 959.98px) {
+      :root {
+        --ink: #000000;
+        --lagoon: #3FD0C9;
+        --apricot: #FFA96B;
+        --orchid: #B98BFF;
+        --rose: #FF7A90;
+        --text: rgba(238, 244, 255, 0.96);
+        --text-2: rgba(238, 244, 255, 0.62);
+        --text-3: rgba(238, 244, 255, 0.40);
+        --glass-fill: linear-gradient(160deg, rgba(255,255,255,0.16), rgba(255,255,255,0.05) 55%, rgba(255,255,255,0.08));
+        --well: rgba(8, 14, 30, 0.28);
+        --hair: rgba(255, 255, 255, 0.14);
+        --ease-out: cubic-bezier(.2, .8, .2, 1);
+        --font-ui: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      body {
+        font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-optical-sizing: auto;
+        color: var(--text);
+        background: var(--ink);
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom));
+      }
+
+      .app { width: 100%; display: grid; place-items: center; }
+
+      /* Vidro */
+      .glass {
+        position: relative;
+        isolation: isolate;
+        background: var(--glass-fill);
+        -webkit-backdrop-filter: blur(28px) saturate(190%) brightness(1.06);
+                backdrop-filter: blur(28px) saturate(190%) brightness(1.06);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.55),
+          inset 0 -1px 0 rgba(255,255,255,0.10),
+          inset 0 0 24px rgba(255,255,255,0.06),
+          0 30px 60px -20px rgba(4, 8, 22, 0.55),
+          0 2px 6px rgba(4, 8, 22, 0.18);
+      }
+      .glass::before {
+        content: "";
+        position: absolute; inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.12) 28%, rgba(255,255,255,0.02) 52%, rgba(255,255,255,0.18) 78%, rgba(255,255,255,0.55) 100%);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+                mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+        pointer-events: none;
+        z-index: 2;
+      }
+      .glass::after {
+        content: "";
+        position: absolute; inset: 0;
+        border-radius: inherit;
+        background: radial-gradient(420px circle at var(--mx, 30%) var(--my, 0%), rgba(255,255,255,0.16), transparent 45%);
+        pointer-events: none;
+        z-index: 1;
+      }
+      .glass > * { position: relative; z-index: 3; }
+
+      .card {
+        position: relative; z-index: 1;
+        width: 100%; max-width: 420px;
+        padding: 28px 26px 26px;
+        border-radius: 34px;
+        animation: materialize 1.1s var(--ease-out) both;
+      }
+      @keyframes materialize {
+        from { opacity: 0; transform: translateY(14px) scale(.965); filter: blur(14px); }
+        to   { opacity: 1; transform: none; filter: blur(0); }
+      }
+
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 26px; }
+      .topbar { align-items: flex-start; margin-bottom: 10px; }
+      .title { font-size: 1.35rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.025em; color: var(--text); max-width: 11em; }
+      .subtitle { font-size: 0.9rem; line-height: 1.5; color: var(--text-2); margin-bottom: 26px; max-width: 34em; }
+      .pill { flex: none; }
+
+      .pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 12px 6px 10px;
+        border-radius: 999px;
+        font-size: 0.78rem; font-weight: 500;
+        color: var(--text-2);
+        background: rgba(255,255,255,0.07);
+        box-shadow: inset 0 0 0 1px var(--hair);
+        font-variant-numeric: tabular-nums;
+      }
+      .pill .led { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); transition: background-color .4s, box-shadow .4s; }
+      .pill[data-state="seeking"] .led { background: var(--apricot); box-shadow: 0 0 10px var(--apricot); animation: blink 1s ease-in-out infinite; }
+      .pill[data-state="locked"] { color: var(--text); }
+      .pill[data-state="locked"] .led { background: var(--lagoon); box-shadow: 0 0 10px var(--lagoon); }
+      .pill[data-state="error"] .led { background: var(--rose); box-shadow: 0 0 10px var(--rose); }
+      @keyframes blink { 50% { opacity: .35; } }
+
+      .clock { margin-bottom: 30px; }
+      .time {
+        display: flex; align-items: baseline; gap: 6px;
+        font-size: clamp(4rem, 17vw, 5.4rem);
+        font-weight: 250;
+        font-variation-settings: "opsz" 96;
+        line-height: 0.9;
+        letter-spacing: -0.055em;
+        font-variant-numeric: tabular-nums;
+      }
+      .time .hm {
+        background: linear-gradient(180deg, #fff 30%, rgba(238,244,255,0.62));
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+      }
+      .time .sec { font-size: 0.3em; font-weight: 400; letter-spacing: -0.01em; color: var(--text-3); transform: translateY(-0.15em); }
+      .date { margin-top: 10px; font-size: 0.95rem; color: var(--text-2); }
+
+      .field { margin-bottom: 14px; }
+      label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-2); margin: 0 0 8px 4px; }
+
+      .input-wrap .enh { display: none; }
+      .input {
+        width: 100%;
+        padding: 15px 16px;
+        font: inherit; font-size: 1rem;
+        color: var(--text);
+        background: var(--well);
+        border: none;
+        border-radius: 14px;
+        box-shadow: inset 0 0 0 1px var(--hair), inset 0 2px 6px rgba(0,0,0,0.18);
+        transition: box-shadow .25s var(--ease-out), background-color .25s;
+        -webkit-appearance: none;
+      }
+      .input::placeholder { color: var(--text-3); }
+      .input:focus { outline: none; box-shadow: inset 0 0 0 1px rgba(63,208,201,0.7), 0 0 0 4px rgba(63,208,201,0.16), inset 0 2px 6px rgba(0,0,0,0.18); }
+
+      .lens { border-radius: 24px; padding: 16px; margin-bottom: 16px; background: linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03)); }
+      .lens::after { display: none; }
+      .lens-body { display: grid; grid-template-columns: 92px 1fr; gap: 16px; align-items: center; margin-bottom: 14px; }
+
+      .radar {
+        position: relative; width: 92px; aspect-ratio: 1; border-radius: 50%;
+        background: radial-gradient(circle, rgba(63,208,201,0.10), transparent 70%), rgba(8,14,30,0.35);
+        box-shadow: inset 0 0 0 1px var(--hair), inset 0 6px 14px rgba(0,0,0,0.25);
+        overflow: hidden;
+      }
+      .radar .ring { position: absolute; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09); }
+      .radar .r1 { inset: 12%; } .radar .r2 { inset: 28%; } .radar .r3 { inset: 42%; }
+      .radar .cross::before, .radar .cross::after { content: ""; position: absolute; background: rgba(255,255,255,0.08); }
+      .radar .cross::before { left: 50%; top: 6%; bottom: 6%; width: 1px; }
+      .radar .cross::after  { top: 50%; left: 6%; right: 6%; height: 1px; }
+      .radar .sweep { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 290deg, rgba(255,169,107,0.55) 360deg); opacity: 0; transition: opacity .4s; }
+      .radar[data-state="seeking"] .sweep { opacity: 1; animation: spin 1.4s linear infinite; }
+      .radar .dot { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: rgba(238,244,255,0.35); transition: background-color .4s, box-shadow .4s, transform .5s var(--ease-out); }
+      .radar[data-state="locked"] .dot { background: var(--lagoon); box-shadow: 0 0 0 3px rgba(63,208,201,0.25), 0 0 18px var(--lagoon); transform: scale(1.15); }
+      .radar[data-state="error"] .dot { background: var(--rose); box-shadow: 0 0 14px var(--rose); }
+      .radar .pulse { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--lagoon); opacity: 0; }
+      .radar.ping .pulse { animation: ping 1.1s var(--ease-out); }
+      @keyframes ping { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(5); } }
+
+      .coords { display: grid; gap: 10px; min-width: 0; }
+      .coord label { margin: 0 0 2px; font-size: 0.75rem; color: var(--text-3); }
+      .coord input {
+        width: 100%;
+        font: inherit; font-size: 1.2rem; letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        background: transparent;
+        border: none; border-bottom: 1px solid var(--hair); border-radius: 0;
+        padding: 2px 0 6px;
+        transition: border-color .25s;
+        -webkit-appearance: none;
+      }
+      .coord input::placeholder { color: var(--text-3); }
+      .coord input:focus { outline: none; border-bottom-color: var(--lagoon); }
+      .coord input.flash { animation: flashG 900ms var(--ease-out); }
+      @keyframes flashG { from { color: var(--lagoon); } to { color: var(--text); } }
+
+      .btn { font-weight: 600; letter-spacing: -0.01em; border-radius: 999px; transition: transform .18s var(--ease-out), background-color .25s, box-shadow .25s, color .25s, opacity .25s; }
+      .btn:active:not(:disabled) { transform: scale(.975); }
+      .btn:disabled { opacity: .75; }
+      .btn:focus-visible, .input:focus-visible { outline: 2px solid var(--lagoon); outline-offset: 3px; }
+
+      .btn-geo { padding: 13px 16px; font-size: 0.92rem; color: var(--text); background: rgba(255,255,255,0.09); box-shadow: inset 0 0 0 1px var(--hair), inset 0 1px 0 rgba(255,255,255,0.25); }
+      .btn-geo:hover:not(:disabled) { background: rgba(255,255,255,0.15); }
+      .btn-geo svg { width: 17px; height: 17px; }
+
+      .btn-submit {
+        padding: 17px 20px; font-size: 1.02rem;
+        color: var(--ink);
+        background: linear-gradient(180deg, #ffffff, #dfe8f7);
+        box-shadow: inset 0 1px 0 #fff, inset 0 -2px 0 rgba(16,28,51,0.08), 0 10px 30px -8px rgba(238,244,255,0.45), 0 2px 4px rgba(4,8,22,0.25);
+      }
+      .btn-submit .icon { display: none; }
+      .btn-submit.done { color: #06302E; background: linear-gradient(180deg, #8EF0E9, var(--lagoon)); }
+
+      .status-message {
+        align-items: flex-start; gap: 10px;
+        margin-top: 14px; padding: 12px 14px;
+        border-radius: 16px;
+        font-size: 0.86rem; line-height: 1.45;
+        color: var(--text);
+        background: rgba(255,255,255,0.07);
+        box-shadow: inset 0 0 0 1px var(--hair);
+      }
+      .status-message::before { content: ""; flex: none; width: 7px; height: 7px; margin-top: 0.45em; border-radius: 50%; }
+      .status-message.success, .status-message.error { animation: rise .45s var(--ease-out); }
+      .status-message.success::before { background: var(--lagoon); box-shadow: 0 0 10px var(--lagoon); }
+      .status-message.error { background: rgba(255,122,144,0.10); box-shadow: inset 0 0 0 1px rgba(255,122,144,0.35); }
+      .status-message.error::before { background: var(--rose); box-shadow: 0 0 10px var(--rose); }
+      @keyframes rise { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+
+      /* ---------- Folha do mapa (celular) ---------- */
+      .sheet {
+        position: fixed; inset: 0; z-index: 50;
+        background: #000;
+        animation: sheetFade .3s var(--ease-out);
+      }
+      @keyframes sheetFade { from { opacity: 0; } }
+      .sheet-map { position: absolute; inset: 0; background: #000; }
+      .sheet-msg {
+        position: absolute; inset: 0;
+        display: grid; place-items: center;
+        padding: 0 40px 200px;
+        text-align: center;
+        font-size: 0.9rem; line-height: 1.5; color: var(--text-2);
+        background: repeating-radial-gradient(circle at 50% 40%, transparent 0 46px, rgba(255,255,255,0.05) 46px 47px), #000;
+      }
+      .sheet-top {
+        position: absolute; z-index: 2;
+        top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px;
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 8px 8px 8px 20px;
+        border-radius: 24px;
+      }
+      .sheet-top h2 { font-size: 1rem; font-weight: 600; letter-spacing: -0.015em; }
+      .icon-btn {
+        width: 40px; height: 40px; flex: none;
+        display: grid; place-items: center;
+        border: none; border-radius: 50%;
+        color: var(--text);
+        background: rgba(255,255,255,0.10);
+        box-shadow: inset 0 0 0 1px var(--hair);
+        cursor: pointer;
+      }
+      .icon-btn svg { width: 18px; height: 18px; }
+      .icon-btn:focus-visible { outline: 2px solid var(--lagoon); outline-offset: 2px; }
+      .sheet-bottom {
+        position: absolute; z-index: 2;
+        left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
+        padding: 18px;
+        border-radius: 30px;
+        animation: sheetUp .5s var(--ease-out);
+      }
+      @keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } }
+      .sheet-hint { font-size: 0.88rem; line-height: 1.45; color: var(--text-2); margin-bottom: 14px; min-height: 2.9em; }
+      .sheet-hint.is-error { color: #FFB3BF; }
+      .sheet-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+      .sheet-coords span { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 2px; }
+      .sheet-coords strong { font-size: 1.2rem; font-weight: 400; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+      .sheet-actions { display: grid; gap: 10px; }
+      .sheet .btn-submit:disabled { opacity: .45; cursor: not-allowed; }
+
+      .sheet .pin {
+        --core: var(--lagoon); --dot: #00211F; --halo: rgba(63,208,201,0.32);
+        --tag-bg: rgba(16,16,20,0.78); --tag-fg: #fff; --tag-sub: rgba(238,244,255,0.6);
+      }
+      .sheet .pin .core { box-shadow: 0 0 0 3px rgba(63,208,201,0.25), 0 0 18px rgba(63,208,201,0.8); }
+      .sheet .pin .tag { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14), 0 4px 14px rgba(0,0,0,0.4); }
+
+      @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .glass { background: rgba(28, 40, 70, 0.88); }
+      }
     }
 
-    .btn:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
+    @media (max-width: 400px) {
+      .card { padding: 22px 18px 18px; border-radius: 28px; }
+      .lens { padding: 14px; border-radius: 20px; }
+      .lens-body { grid-template-columns: 80px 1fr; gap: 14px; }
+      .radar { width: 80px; }
     }
 
-    .btn-geo {
-      background-color: var(--secondary);
-      color: var(--text-main);
-      margin-bottom: 20px;
-      border: 1px solid var(--border);
+    /* =========================================================
+       COMPUTADOR — linguagem Base (preto, branco, mapa)
+       ========================================================= */
+    @media (min-width: 960px) {
+      :root {
+        --black: #000000;
+        --white: #FFFFFF;
+        --gray50: #F6F6F6;
+        --gray100: #EEEEEE;
+        --gray200: #E2E2E2;
+        --gray300: #CBCBCB;
+        --gray400: #AFAFAF;
+        --gray500: #757575;
+        --gray600: #545454;
+        --gray700: #333333;
+        --positive: #05944F;
+        --positive-bg: #E6F2ED;
+        --positive-text: #03582F;
+        --negative: #E11900;
+        --negative-bg: #FFEFED;
+        --negative-text: #870F00;
+        --warning: #FFC043;
+        --shadow-400: 0 1px 4px rgba(0,0,0,0.16);
+        --shadow-500: 0 2px 8px rgba(0,0,0,0.16);
+        --shadow-700: 0 8px 24px rgba(0,0,0,0.16);
+        --ease: cubic-bezier(.2, .8, .4, 1);
+        --font-ui: "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      }
+
+      .sheet { display: none !important; }
+
+      body {
+        font-family: "Inter", system-ui, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-feature-settings: "cv11", "ss01";
+        color: var(--black);
+        background: var(--white);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .radar, .date { display: none; }
+
+      /* Cabeçalho */
+      .site-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 64px;
+        flex: none;
+        padding: 0 32px;
+        background: var(--black);
+        color: var(--white);
+        position: relative;
+        z-index: 1000;
+      }
+      .wordmark {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 1.5rem; font-weight: 700; letter-spacing: -0.04em;
+      }
+      .wordmark .mark {
+        width: 22px; height: 22px; border-radius: 6px;
+        background: var(--white);
+        display: grid; place-items: center;
+      }
+      .wordmark .mark::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--black); }
+      .header-date { display: block; font-size: 0.875rem; font-weight: 500; color: var(--gray300); }
+
+      /* Palco: mapa em tela cheia com painel flutuante */
+      .app { position: relative; flex: 1; min-height: 0; }
+
+      .map-wrap { display: block; position: absolute; inset: 0; background: var(--gray100); }
+      #map { position: absolute; inset: 0; z-index: 0; background: var(--gray100); }
+
+      .map-fallback {
+        position: absolute; inset: 0;
+        background:
+          linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px) 0 0 / 120px 120px,
+          linear-gradient(0deg, rgba(0,0,0,0.04) 1px, transparent 1px) 0 0 / 120px 120px,
+          linear-gradient(90deg, rgba(0,0,0,0.025) 1px, transparent 1px) 0 0 / 24px 24px,
+          linear-gradient(0deg, rgba(0,0,0,0.025) 1px, transparent 1px) 0 0 / 24px 24px,
+          var(--gray50);
+      }
+      .map-ready .map-fallback { display: none; }
+
+      .map-hint {
+        position: absolute; left: calc(50% + 220px); top: 24px; transform: translateX(-50%);
+        z-index: 500;
+        display: inline-flex; align-items: center; gap: 10px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: var(--white);
+        box-shadow: var(--shadow-500);
+        font-size: 0.875rem; font-weight: 500;
+        white-space: nowrap;
+        transition: opacity .3s var(--ease), transform .3s var(--ease);
+      }
+      .map-hint svg { width: 16px; height: 16px; }
+      .has-fix .map-hint { opacity: 0; transform: translate(-50%, -8px); pointer-events: none; }
+      .map-error .map-hint { opacity: 1; transform: translateX(-50%); white-space: normal; width: max-content; max-width: min(440px, calc(100vw - 560px)); border-radius: 16px; line-height: 1.4; }
+
+      .map-controls {
+        position: absolute; right: 24px; bottom: 32px; z-index: 500;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .map-btn {
+        width: 44px; height: 44px;
+        display: grid; place-items: center;
+        border: none; border-radius: 8px;
+        background: var(--white);
+        color: var(--black);
+        box-shadow: var(--shadow-500);
+        cursor: pointer;
+        transition: background-color .15s;
+      }
+      .map-btn:hover { background: var(--gray50); }
+      .map-btn:active { background: var(--gray100); }
+      .map-btn svg { width: 20px; height: 20px; }
+      .map-btn:focus-visible { outline: 2px solid var(--black); outline-offset: 2px; }
+      .zoom-group { display: flex; flex-direction: column; border-radius: 8px; box-shadow: var(--shadow-500); overflow: hidden; }
+      .zoom-group .map-btn { box-shadow: none; border-radius: 0; }
+      .zoom-group .map-btn + .map-btn { border-top: 1px solid var(--gray100); }
+
+      /* Painel */
+      .card {
+        position: absolute;
+        top: 24px; left: 32px; bottom: 24px;
+        z-index: 600;
+        width: 420px;
+        display: flex;
+        flex-direction: column;
+        padding: 32px;
+        background: var(--white);
+        border-radius: 16px;
+        box-shadow: var(--shadow-700);
+        overflow-y: auto;
+        animation: panelIn .5s var(--ease) both;
+      }
+      @keyframes panelIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+
+      .topbar { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+      #customGoogleForm { flex: 1; display: flex; flex-direction: column; }
+      .title { font-size: 2rem; line-height: 2.5rem; font-weight: 700; letter-spacing: -0.035em; }
+      .subtitle { margin: 4px 0 4px; font-size: 1rem; line-height: 1.5rem; color: var(--gray600); }
+
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        height: 28px; padding: 0 12px;
+        border-radius: 999px;
+        font-size: 0.8125rem; font-weight: 500;
+        color: var(--black);
+        background: var(--gray100);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .pill .led { width: 8px; height: 8px; border-radius: 50%; background: var(--gray400); }
+      .pill[data-state="seeking"] .led { background: var(--warning); animation: blinkD 1s ease-in-out infinite; }
+      .pill[data-state="locked"] { background: var(--positive-bg); color: var(--positive-text); }
+      .pill[data-state="locked"] .led { background: var(--positive); }
+      .pill[data-state="error"] { background: var(--negative-bg); color: var(--negative-text); }
+      .pill[data-state="error"] .led { background: var(--negative); }
+      @keyframes blinkD { 50% { opacity: .3; } }
+
+      .clock {
+        padding: 20px 0 24px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid var(--gray200);
+      }
+      .time {
+        display: flex; align-items: baseline; gap: 6px;
+        font-size: 4.5rem; line-height: 1; font-weight: 700;
+        letter-spacing: -0.06em;
+        font-variant-numeric: tabular-nums;
+      }
+      .time .sec { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; color: var(--gray400); }
+
+      .field { margin-bottom: 20px; }
+      label { display: block; font-size: 0.875rem; line-height: 1rem; font-weight: 500; margin-bottom: 8px; }
+
+      .input-wrap { position: relative; }
+      .input-wrap .enh {
+        position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+        width: 10px; height: 10px;
+        background: var(--black);
+        pointer-events: none;
+      }
+      .input-wrap .enh.sq { border-radius: 2px; }
+
+      .input, .coord input {
+        width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        font: inherit; font-size: 1rem;
+        color: var(--black);
+        background: var(--gray100);
+        border: 2px solid var(--gray100);
+        border-radius: 8px;
+        transition: border-color .15s, background-color .15s;
+        -webkit-appearance: none;
+      }
+      .input-wrap .input { padding-left: 40px; }
+      .input::placeholder, .coord input::placeholder { color: var(--gray500); }
+      .input:hover, .coord input:hover { background: var(--gray200); border-color: var(--gray200); }
+      .input:focus, .coord input:focus { outline: none; background: var(--gray50); border-color: var(--black); }
+
+      .lens { margin-bottom: 0; }
+      .lens-body { margin-bottom: 12px; }
+      .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .coord input { font-variant-numeric: tabular-nums; }
+      .coord input.flash { animation: flashD 1s var(--ease); }
+      @keyframes flashD { from { background: var(--positive-bg); border-color: var(--positive); } }
+
+      .btn {
+        height: 48px;
+        padding: 0 16px;
+        font-size: 1rem; font-weight: 500;
+        border-radius: 8px;
+        transition: background-color .15s, color .15s;
+      }
+      .btn:focus-visible { outline: 2px solid var(--black); outline-offset: 2px; }
+      .btn-geo { background: var(--gray100); color: var(--black); }
+      .btn-geo:hover:not(:disabled) { background: var(--gray200); }
+      .btn-geo:active:not(:disabled) { background: var(--gray300); }
+
+      .actions { margin-top: auto; padding-top: 24px; }
+      .btn-submit { height: 56px; font-size: 1.125rem; background: var(--black); color: var(--white); }
+      .btn-submit:hover:not(:disabled) { background: var(--gray700); }
+      .btn-submit:active:not(:disabled) { background: var(--gray600); }
+      .btn-submit:disabled { background: var(--gray700); }
+      .btn-submit .icon { display: none; }
+      .btn-submit.done { background: var(--positive); }
+      .btn-submit.done .icon { display: block; }
+
+      .status-message {
+        align-items: flex-start; gap: 12px;
+        margin-top: 16px; padding: 16px;
+        border-radius: 8px;
+        font-size: 0.875rem; line-height: 1.25rem; font-weight: 500;
+      }
+      .status-message::before {
+        content: ""; flex: none;
+        width: 20px; height: 20px; border-radius: 50%;
+        background-repeat: no-repeat; background-position: center; background-size: 12px;
+      }
+      .status-message.success { background: var(--positive-bg); color: var(--positive-text); }
+      .status-message.success::before {
+        background-color: var(--positive);
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 6.2 5 8.5l4.5-5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      }
+      .status-message.error { background: var(--negative-bg); color: var(--negative-text); }
+      .status-message.error::before {
+        background-color: var(--negative);
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M6 3v3.5M6 8.8v.1' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round'/></svg>");
+      }
     }
 
-    .btn-geo:hover:not(:disabled) {
-      background-color: var(--secondary-hover);
+    @media (min-width: 960px) and (max-height: 760px) {
+      .time { font-size: 3.5rem; }
+      .clock { padding: 12px 0 16px; margin-bottom: 16px; }
+      .card { padding: 24px 28px; }
     }
 
-    .btn-submit {
-      background-color: var(--primary);
-      color: #ffffff;
-      margin-top: 8px;
-    }
-
-    .btn-submit:hover:not(:disabled) {
-      background-color: var(--primary-hover);
-    }
-
-    .status-message {
-      margin-top: 16px;
-      padding: 12px 14px;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      display: none;
-      line-height: 1.4;
-    }
-
-    .status-message.success {
-      display: block;
-      background-color: var(--success-bg);
-      color: var(--success-text);
-    }
-
-    .status-message.error {
-      display: block;
-      background-color: var(--error-bg);
-      color: var(--error-text);
-    }
-
-    /* Spinner simples para feedback de carregamento */
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid currentColor;
-      border-right-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-      display: none;
-    }
-
-    .loading .spinner {
-      display: inline-block;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
     }
   </style>
 </head>
 <body>
 
-  <main class="container">
-    <header>
-      <h1>Registro de Ponto</h1>
-      <p class="subtitle">Informe o nome do local e capture suas coordenadas geográficas para envio.</p>
-    </header>
+  <!-- Cabeçalho do computador -->
+  <header class="site-header">
+    <div class="wordmark"><span class="mark" aria-hidden="true"></span>GenMet</div>
+    <span class="header-date" id="headerDate"></span>
+  </header>
 
-    <form id="customGoogleForm">
-      <div class="form-group">
-        <label for="local">Nome do Local</label>
-        <input 
-          type="text" 
-          id="local" 
-          name="entry.1350129950" 
-          placeholder="Ex: Matriz, Obra Centro, Ponto 01..." 
-          required
-        >
+  <div class="app" id="app">
+    <!-- Mapa (computador) -->
+    <section class="map-wrap" aria-label="Mapa da sua localização">
+      <div class="map-fallback" aria-hidden="true"></div>
+      <div id="map"></div>
+
+      <div class="map-hint" role="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg>
+        <span id="mapHintText">Clique no mapa para escolher o ponto</span>
       </div>
 
-      <button type="button" id="btnGetLocation" class="btn btn-geo">
-        <span class="spinner" id="geoSpinner"></span>
-        <span id="geoBtnText">📍 Capturar Minha Localização Atual</span>
-      </button>
-
-      <div class="coords-grid">
-        <div class="form-group">
-          <label for="latitude">Latitude</label>
-          <input 
-            type="text" 
-            id="latitude" 
-            name="entry.718109587" 
-            placeholder="-22.3145" 
-            required
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="longitude">Longitude</label>
-          <input 
-            type="text" 
-            id="longitude" 
-            name="entry.964245664" 
-            placeholder="-49.0587" 
-            required
-          >
+      <div class="map-controls">
+        <button type="button" class="map-btn" id="mapRecenter" aria-label="Centralizar na minha posição">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 3 3 10.5l7.5 3 3 7.5L21 3Z"/></svg>
+        </button>
+        <div class="zoom-group">
+          <button type="button" class="map-btn" id="mapZoomIn" aria-label="Aproximar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button type="button" class="map-btn" id="mapZoomOut" aria-label="Afastar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
         </div>
       </div>
+    </section>
 
-      <button type="submit" id="btnSubmit" class="btn btn-submit">
-        <span class="spinner" id="submitSpinner"></span>
-        <span id="submitBtnText">Enviar Dados</span>
+    <!-- Painel / cartão -->
+    <main class="card glass" id="card">
+      <div class="topbar">
+        <h1 class="title">Coleta de dados meteorológicos</h1>
+        <span class="pill" id="gpsPill" data-state="idle">
+          <span class="led"></span>
+          <span id="gpsPillText">Sem localização</span>
+        </span>
+      </div>
+
+      <p class="subtitle">
+        Informe o nome do local e as coordenadas. Use sua localização atual ou clique no mapa para preencher automaticamente.
+      </p>
+
+      <div class="clock" aria-live="off">
+        <div class="time"><span class="hm" id="clockHM">--:--</span><span class="sec" id="clockS">00</span></div>
+        <p class="date" id="clockDate">&nbsp;</p>
+      </div>
+
+      <form id="customGoogleForm" novalidate>
+        <div class="field">
+          <label for="local">Local</label>
+          <div class="input-wrap">
+            <span class="enh sq" aria-hidden="true"></span>
+            <input
+              class="input"
+              type="text"
+              id="local"
+              name="entry.1350129950"
+              placeholder="Estação Centro, Sítio Boa Vista, Ponto 01…"
+              autocomplete="off"
+              required
+            >
+          </div>
+        </div>
+
+        <section class="lens glass" aria-label="Coordenadas">
+          <div class="lens-body">
+            <div class="radar" id="radar" data-state="idle" aria-hidden="true">
+              <span class="ring r1"></span>
+              <span class="ring r2"></span>
+              <span class="ring r3"></span>
+              <span class="cross"></span>
+              <span class="sweep"></span>
+              <span class="pulse"></span>
+              <span class="dot"></span>
+            </div>
+
+            <div class="coords">
+              <div class="coord">
+                <label for="latitude">Latitude</label>
+                <input
+                  type="text"
+                  id="latitude"
+                  name="entry.718109587"
+                  placeholder="-22.905600"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  required
+                >
+              </div>
+              <div class="coord">
+                <label for="longitude">Longitude</label>
+                <input
+                  type="text"
+                  id="longitude"
+                  name="entry.964245664"
+                  placeholder="-47.060800"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  required
+                >
+              </div>
+            </div>
+          </div>
+
+          <button type="button" id="btnGetLocation" class="btn btn-geo">
+            <span class="spinner"></span>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.2"/>
+              <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/>
+              <circle cx="12" cy="12" r="7"/>
+            </svg>
+            <span id="geoBtnText">Usar minha localização</span>
+          </button>
+        </section>
+
+        <div class="actions">
+          <button type="submit" id="btnSubmit" class="btn btn-submit">
+            <span class="spinner"></span>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+            <span id="submitBtnText">Enviar dados</span>
+          </button>
+
+          <div id="statusMessage" class="status-message" role="status" aria-live="polite"></div>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <!-- Mapa em tela cheia (celular) -->
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="sheet-map" id="sheetMap"></div>
+    <div class="sheet-msg" id="sheetMsg" hidden></div>
+
+    <div class="sheet-top glass">
+      <h2 id="sheetTitle">Escolha o ponto</h2>
+      <button type="button" class="icon-btn" id="sheetClose" aria-label="Cancelar e fechar o mapa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
+    </div>
 
-      <div id="statusMessage" class="status-message" role="alert"></div>
-    </form>
-  </main>
+    <div class="sheet-bottom glass">
+      <p class="sheet-hint" id="sheetHint" aria-live="polite">Toque no mapa para escolher o ponto.</p>
+      <div class="sheet-coords">
+        <div><span>Latitude</span><strong id="sheetLat">—</strong></div>
+        <div><span>Longitude</span><strong id="sheetLng">—</strong></div>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-geo" id="sheetGps">
+          <span class="spinner"></span>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="7"/></svg>
+          <span id="sheetGpsText">Usar minha localização</span>
+        </button>
+        <button type="button" class="btn btn-submit" id="sheetConfirm" disabled>Confirmar ponto</button>
+      </div>
+    </div>
+  </div>
 
   <script>
+    /* =========================================================
+       CONFIGURAÇÃO
+       Cole aqui a sua chave da API do Google Maps
+       (Google Cloud Console > APIs e serviços > Credenciais).
+       Ative a "Maps JavaScript API" e restrinja a chave ao seu domínio.
+       ========================================================= */
+    const GOOGLE_MAPS_API_KEY = 'AIzaSyCIkRA8cXnlxsCh82QDa8l3x95Gvb4EkTw';
+
     const FORM_ACTION_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfWxeVvkQ0Y3T5msuFVOmS5in4ybYmw86oVJk5J6J8R_8BKyw/formResponse';
+    const CAMPINAS = { lat: -22.9056, lng: -47.0608 };
 
-    const form = document.getElementById('customGoogleForm');
-    const inputLocal = document.getElementById('local');
-    const inputLat = document.getElementById('latitude');
-    const inputLng = document.getElementById('longitude');
-    
-    const btnGeo = document.getElementById('btnGetLocation');
-    const geoBtnText = document.getElementById('geoBtnText');
-    
-    const btnSubmit = document.getElementById('btnSubmit');
-    const submitBtnText = document.getElementById('submitBtnText');
-    const statusMessage = document.getElementById('statusMessage');
+    const $ = (id) => document.getElementById(id);
 
-    // Função auxiliar para exibir alertas na interface
-    function showStatus(message, type) {
-      statusMessage.textContent = message;
-      statusMessage.className = `status-message ${type}`;
+    const app        = $('app');
+    const card       = $('card');
+    const form       = $('customGoogleForm');
+    const inputLocal = $('local');
+    const inputLat   = $('latitude');
+    const inputLng   = $('longitude');
+    const btnGeo     = $('btnGetLocation');
+    const geoBtnText = $('geoBtnText');
+    const btnSubmit  = $('btnSubmit');
+    const submitText = $('submitBtnText');
+    const statusMsg  = $('statusMessage');
+    const radar      = $('radar');
+    const pill       = $('gpsPill');
+    const pillText   = $('gpsPillText');
+
+    const sheet        = $('sheet');
+    const sheetHint    = $('sheetHint');
+    const sheetMsg     = $('sheetMsg');
+    const sheetGps     = $('sheetGps');
+    const sheetGpsText = $('sheetGpsText');
+    const sheetConfirm = $('sheetConfirm');
+
+    const desktopMQ = window.matchMedia('(min-width: 960px)');
+
+    // Ponto atual: { lat, lng, source: 'gps' | 'map' | 'manual', accuracy }
+    let point = null;
+
+    /* ---------- Relógio ---------- */
+    const fmtDate = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const pad = (n) => String(n).padStart(2, '0');
+
+    function tick() {
+      const now = new Date();
+      $('clockHM').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      $('clockS').textContent  = pad(now.getSeconds());
+      const d = fmtDate.format(now);
+      const cap = d.charAt(0).toUpperCase() + d.slice(1);
+      $('clockDate').textContent = cap;
+      $('headerDate').textContent = cap;
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    /* ---------- Reflexo do vidro (celular) ---------- */
+    window.addEventListener('pointermove', (e) => {
+      if (desktopMQ.matches) return;
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+      card.style.setProperty('--my', `${e.clientY - r.top}px`);
+    }, { passive: true });
+
+    /* =========================================================
+       Google Maps
+       ========================================================= */
+    const STYLE_LIGHT = [
+      { elementType: 'geometry', stylers: [{ color: '#F3F3F3' }] },
+      { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: '#6B6B6B' }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }] },
+      { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#D6D6D6' }] },
+      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+      { featureType: 'poi.park', stylers: [{ visibility: 'on' }] },
+      { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#E3EDE3' }] },
+      { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
+      { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#8A8A8A' }] },
+      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#E2E2E2' }] },
+      { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+      { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#D5DEE5' }] },
+      { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9AA6B0' }] }
+    ];
+
+    const STYLE_DARK = [
+      { elementType: 'geometry', stylers: [{ color: '#050505' }] },
+      { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: '#7A7A80' }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: '#000000' }] },
+      { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#222225' }] },
+      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+      { featureType: 'poi.park', stylers: [{ visibility: 'on' }] },
+      { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#08140F' }] },
+      { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1B1B1F' }] },
+      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2A2A30' }] },
+      { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+      { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0A1B22' }] }
+    ];
+
+    let mapsPromise = null;
+    let mapsBroken = false;
+
+    function loadGoogleMaps() {
+      if (mapsPromise) return mapsPromise;
+      mapsPromise = new Promise((resolve, reject) => {
+        if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'COLE_SUA_CHAVE_AQUI') {
+          reject(new Error('sem-chave'));
+          return;
+        }
+        window.__genmetMapsReady = () => resolve(window.google.maps);
+        window.gm_authFailure = () => onMapsFailure('chave-invalida');
+        const s = document.createElement('script');
+        s.src = 'https://maps.googleapis.com/maps/api/js'
+              + `?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`
+              + '&callback=__genmetMapsReady&loading=async&language=pt-BR&region=BR';
+        s.async = true;
+        s.onerror = () => reject(new Error('rede'));
+        document.head.appendChild(s);
+      });
+      mapsPromise.catch((err) => onMapsFailure(err.message));
+      return mapsPromise;
     }
 
-    // 1. Preenche automaticamente via Query String caso a URL do GitHub Pages receba parâmetros
+    function mapsErrorText(reason) {
+      if (reason === 'sem-chave') return 'O mapa precisa de uma chave da API do Google Maps. Enquanto isso, use sua localização ou digite as coordenadas.';
+      if (reason === 'chave-invalida') return 'A chave da API do Google Maps foi recusada. Confira a chave e os domínios permitidos.';
+      return 'Não foi possível carregar o mapa. Verifique a conexão; você ainda pode usar sua localização.';
+    }
+
+    function onMapsFailure(reason) {
+      mapsBroken = true;
+      app.classList.remove('map-ready');
+      $('mapHintText').textContent = mapsErrorText(reason);
+      app.classList.add('map-error');
+      sheetMsg.textContent = mapsErrorText(reason);
+      sheetMsg.hidden = false;
+    }
+
+    /* Controlador de um mapa (o de fundo no computador ou o da folha no celular) */
+    async function createMapController(el, { style, offset, onPick }) {
+      const g = await loadGoogleMaps();
+      const { Map, OverlayView, Circle } = await g.importLibrary('maps');
+      const { LatLng } = await g.importLibrary('core');
+
+      const map = new Map(el, {
+        center: CAMPINAS,
+        zoom: 12,
+        styles: style,
+        disableDefaultUI: true,
+        clickableIcons: false,
+        keyboardShortcuts: false,
+        gestureHandling: 'greedy',
+        backgroundColor: style === STYLE_DARK ? '#000000' : '#F3F3F3',
+        draggableCursor: 'crosshair',
+        draggingCursor: 'grabbing'
+      });
+
+      class PinOverlay extends OverlayView {
+        constructor() {
+          super();
+          this.pos = null;
+          this.div = document.createElement('div');
+          this.div.style.position = 'absolute';
+        }
+        onAdd() { this.getPanes().floatPane.appendChild(this.div); }
+        draw() {
+          const proj = this.getProjection();
+          if (!proj || !this.pos) return;
+          const p = proj.fromLatLngToDivPixel(this.pos);
+          if (!p) return;
+          this.div.style.left = `${p.x}px`;
+          this.div.style.top  = `${p.y}px`;
+        }
+        onRemove() { this.div.remove(); }
+        update(lat, lng, html) {
+          this.pos = new LatLng(lat, lng);
+          this.div.innerHTML = html;
+          this.draw();
+        }
+      }
+
+      const pin = new PinOverlay();
+      let pinOnMap = false;
+      let circle = null;
+
+      map.addListener('click', (e) => {
+        if (!e.latLng) return;
+        onPick(e.latLng.lat(), e.latLng.lng());
+      });
+
+      const { Point } = await g.importLibrary('core');
+
+      // Centraliza deixando o ponto deslocado (painéis cobrem parte do mapa)
+      function focusOn(lat, lng, zoom = 17) {
+        map.setZoom(zoom);
+        const proj = map.getProjection();
+        if (!proj) {
+          map.setCenter({ lat, lng });
+          map.panBy(offset[0], offset[1]);
+          return;
+        }
+        const scale = Math.pow(2, zoom);
+        const wp = proj.fromLatLngToPoint(new LatLng(lat, lng));
+        const target = proj.fromPointToLatLng(new Point(wp.x + offset[0] / scale, wp.y + offset[1] / scale));
+        map.panTo(target);
+      }
+
+      return {
+        map,
+        show(p, { recenter = true } = {}) {
+          pin.update(p.lat, p.lng, pinHTML(p));
+          if (!pinOnMap) { pin.setMap(map); pinOnMap = true; }
+
+          if (circle) { circle.setMap(null); circle = null; }
+          if (Number.isFinite(p.accuracy) && p.accuracy < 2000) {
+            const dark = style === STYLE_DARK;
+            circle = new Circle({
+              map,
+              center: { lat: p.lat, lng: p.lng },
+              radius: p.accuracy,
+              strokeColor: dark ? '#3FD0C9' : '#000000',
+              strokeOpacity: dark ? 0.5 : 0.25,
+              strokeWeight: 1,
+              fillColor: dark ? '#3FD0C9' : '#000000',
+              fillOpacity: dark ? 0.10 : 0.06,
+              clickable: false
+            });
+          }
+          if (recenter) focusOn(p.lat, p.lng);
+        },
+        refreshLabel(p) { if (pinOnMap && p) pin.update(p.lat, p.lng, pinHTML(p)); },
+        clear() {
+          if (pinOnMap) { pin.setMap(null); pinOnMap = false; }
+          if (circle) { circle.setMap(null); circle = null; }
+        },
+        startAtCampinas() { map.setZoom(12); map.panTo(CAMPINAS); },
+        focusOn,
+        zoomBy(d) { map.setZoom((map.getZoom() || 12) + d); }
+      };
+    }
+
+    function escapeHTML(s) {
+      return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function pinHTML(p) {
+      const name = inputLocal.value.trim();
+      const title = name ? escapeHTML(name) : (p.source === 'gps' ? 'Você está aqui' : 'Ponto selecionado');
+      const sub = Number.isFinite(p.accuracy) ? `<small>Precisão de ${Math.round(p.accuracy)} m</small>` : '';
+      return `<div class="pin"><span class="halo"></span><span class="core"></span><span class="tag">${title}${sub}</span></div>`;
+    }
+
+    /* ---------- Mapa de fundo (computador) ---------- */
+    let deskMap = null, deskMapLoading = null;
+
+    function ensureDeskMap() {
+      if (deskMap || deskMapLoading || mapsBroken) return deskMapLoading;
+      deskMapLoading = createMapController($('map'), {
+        style: STYLE_LIGHT,
+        offset: [-220, 0],                 // o ponto fica à direita do painel
+        onPick: (lat, lng) => setPoint({ lat, lng, source: 'map', accuracy: null }, { recenter: false })
+      }).then((ctrl) => {
+        deskMap = ctrl;
+        app.classList.add('map-ready');
+        ctrl.map.panBy(-220, 0);
+        if (point) ctrl.show(point, { recenter: true });
+        return ctrl;
+      }).catch(() => null);
+      return deskMapLoading;
+    }
+
+    $('mapZoomIn').addEventListener('click', () => deskMap && deskMap.zoomBy(1));
+    $('mapZoomOut').addEventListener('click', () => deskMap && deskMap.zoomBy(-1));
+    $('mapRecenter').addEventListener('click', () => {
+      if (point && deskMap) deskMap.focusOn(point.lat, point.lng);
+      else requestGps();
+    });
+
+    /* ---------- Mapa em tela cheia (celular) ---------- */
+    let sheetMap = null, sheetMapLoading = null, sheetSnapshot = null;
+
+    function ensureSheetMap() {
+      if (sheetMap || sheetMapLoading || mapsBroken) return sheetMapLoading;
+      sheetMapLoading = createMapController($('sheetMap'), {
+        style: STYLE_DARK,
+        offset: [0, 110],                  // o ponto fica acima do painel inferior
+        onPick: (lat, lng) => {
+          setPoint({ lat, lng, source: 'map', accuracy: null }, { recenter: false });
+          setSheetHint('Ponto escolhido. Toque em outro lugar para ajustar.');
+        }
+      }).then((ctrl) => {
+        sheetMap = ctrl;
+        if (point) ctrl.show(point, { recenter: true });
+        return ctrl;
+      }).catch(() => null);
+      return sheetMapLoading;
+    }
+
+    function setSheetHint(text, isError = false) {
+      sheetHint.textContent = text;
+      sheetHint.classList.toggle('is-error', isError);
+    }
+
+    function updateSheetCoords() {
+      $('sheetLat').textContent = point ? point.lat.toFixed(6) : '—';
+      $('sheetLng').textContent = point ? point.lng.toFixed(6) : '—';
+      sheetConfirm.disabled = !point;
+    }
+
+    function openSheet() {
+      sheetSnapshot = {
+        lat: inputLat.value, lng: inputLng.value,
+        point: point ? { ...point } : null,
+        state: pill.dataset.state, label: pillText.textContent
+      };
+      sheet.hidden = false;
+      document.body.style.overflow = 'hidden';
+      updateSheetCoords();
+      setSheetHint('Buscando sua localização… Você também pode tocar no mapa.');
+      ensureSheetMap();
+      if (sheetMap) {
+        if (point) sheetMap.show(point, { recenter: true });
+        else { sheetMap.clear(); sheetMap.startAtCampinas(); }
+      }
+      $('sheetClose').focus();
+    }
+
+    function closeSheet({ keep }) {
+      if (sheet.hidden) return;
+      if (!keep && sheetSnapshot) {
+        inputLat.value = sheetSnapshot.lat;
+        inputLng.value = sheetSnapshot.lng;
+        point = sheetSnapshot.point;
+        setGeoState(sheetSnapshot.state, sheetSnapshot.label);
+        if (point) { sheetMap && sheetMap.show(point, { recenter: false }); deskMap && deskMap.show(point, { recenter: false }); }
+        else { sheetMap && sheetMap.clear(); deskMap && deskMap.clear(); }
+      }
+      sheet.hidden = true;
+      document.body.style.overflow = '';
+      btnGeo.focus();
+    }
+
+    $('sheetClose').addEventListener('click', () => closeSheet({ keep: false }));
+    sheetConfirm.addEventListener('click', () => {
+      closeSheet({ keep: true });
+      if (point) restart(radar, 'ping');
+    });
+    sheetGps.addEventListener('click', () => requestGps());
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !sheet.hidden) closeSheet({ keep: false });
+    });
+
+    function onBreakpoint() {
+      if (desktopMQ.matches) {
+        closeSheet({ keep: true });
+        ensureDeskMap();
+      }
+    }
+    desktopMQ.addEventListener ? desktopMQ.addEventListener('change', onBreakpoint) : desktopMQ.addListener(onBreakpoint);
+
+    /* ---------- Estado do ponto ---------- */
+    function isValidLatLng(lat, lng) {
+      return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+    }
+
+    function setGeoState(state, label) {
+      radar.dataset.state = state;
+      pill.dataset.state  = state;
+      if (label) pillText.textContent = label;
+    }
+
+    function restart(el, cls) {
+      el.classList.remove(cls);
+      void el.offsetWidth;
+      el.classList.add(cls);
+    }
+
+    function labelFor(p) {
+      if (p.source === 'gps') return Number.isFinite(p.accuracy) ? `Precisão de ${Math.round(p.accuracy)} m` : 'Localização obtida';
+      if (p.source === 'map') return 'Ponto escolhido no mapa';
+      return 'Coordenadas manuais';
+    }
+
+    function setPoint(p, { recenter = true, fillInputs = true } = {}) {
+      point = p;
+      if (fillInputs) {
+        inputLat.value = p.lat.toFixed(6);
+        inputLng.value = p.lng.toFixed(6);
+        restart(inputLat, 'flash');
+        restart(inputLng, 'flash');
+      }
+      setGeoState('locked', labelFor(p));
+      app.classList.add('has-fix');
+      hideStatus();
+      if (deskMap) deskMap.show(p, { recenter });
+      if (sheetMap && !sheet.hidden) sheetMap.show(p, { recenter });
+      updateSheetCoords();
+    }
+
+    function clearPoint() {
+      point = null;
+      app.classList.remove('has-fix');
+      setGeoState('idle', 'Sem localização');
+      deskMap && deskMap.clear();
+      sheetMap && sheetMap.clear();
+      updateSheetCoords();
+    }
+
+    /* ---------- Mensagens ---------- */
+    function showStatus(message, type) {
+      statusMsg.textContent = message;
+      statusMsg.className = 'status-message';
+      void statusMsg.offsetWidth;
+      statusMsg.classList.add(type);
+    }
+    function hideStatus() { statusMsg.className = 'status-message'; }
+
+    /* ---------- 1. Preenchimento via query string ---------- */
+    function syncManualCoords() {
+      const lat = parseFloat(inputLat.value), lng = parseFloat(inputLng.value);
+      if (isValidLatLng(lat, lng)) setPoint({ lat, lng, source: 'manual', accuracy: null }, { fillInputs: false });
+      else clearPoint();
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       if (params.has('local')) inputLocal.value = params.get('local');
-      if (params.has('lat')) inputLat.value = params.get('lat');
-      if (params.has('lng')) inputLng.value = params.get('lng');
+      if (params.has('lat'))   inputLat.value   = params.get('lat');
+      if (params.has('lng'))   inputLng.value   = params.get('lng');
+      if (inputLat.value || inputLng.value) syncManualCoords();
+      onBreakpoint();
     });
 
-    // 2. Captura de Geolocalização via API nativa do navegador
-    btnGeo.addEventListener('click', () => {
+    let manualTimer = null;
+    [inputLat, inputLng].forEach((el) => el.addEventListener('input', () => {
+      clearTimeout(manualTimer);
+      manualTimer = setTimeout(syncManualCoords, 500);
+    }));
+
+    inputLocal.addEventListener('input', () => {
+      deskMap && deskMap.refreshLabel(point);
+      sheetMap && sheetMap.refreshLabel(point);
+    });
+
+    /* ---------- 2. Geolocalização ---------- */
+    function setGpsBusy(busy) {
+      [btnGeo, sheetGps].forEach((b) => {
+        b.disabled = busy;
+        b.classList.toggle('loading', busy);
+      });
+      if (busy) {
+        geoBtnText.textContent = 'Buscando sinal…';
+        sheetGpsText.textContent = 'Buscando sinal…';
+      }
+    }
+
+    function requestGps() {
       if (!('geolocation' in navigator)) {
-        showStatus('Seu navegador não suporta geolocalização.', 'error');
+        const msg = 'Este navegador não oferece geolocalização. Toque no mapa ou digite as coordenadas.';
+        setGeoState('error', 'Indisponível');
+        sheet.hidden ? showStatus(msg, 'error') : setSheetHint(msg, true);
         return;
       }
 
-      btnGeo.disabled = true;
-      btnGeo.classList.add('loading');
-      geoBtnText.textContent = 'Obtendo coordenadas...';
-      statusMessage.style.display = 'none';
+      setGpsBusy(true);
+      setGeoState('seeking', 'Buscando…');
+      hideStatus();
+      if (!sheet.hidden) setSheetHint('Buscando sua localização… Você também pode tocar no mapa.');
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          inputLat.value = position.coords.latitude.toFixed(6);
-          inputLng.value = position.coords.longitude.toFixed(6);
-          
-          btnGeo.disabled = false;
-          btnGeo.classList.remove('loading');
-          geoBtnText.textContent = '📍 Atualizar Localização';
-          showStatus('Coordenadas capturadas com sucesso!', 'success');
+          const { latitude, longitude, accuracy } = position.coords;
+          setGpsBusy(false);
+          geoBtnText.textContent = 'Atualizar localização';
+          sheetGpsText.textContent = 'Atualizar localização';
+          setPoint({ lat: latitude, lng: longitude, source: 'gps', accuracy: Number.isFinite(accuracy) ? accuracy : null });
+          restart(radar, 'ping');
+          setSheetHint('Localização encontrada. Toque no mapa se quiser ajustar o ponto.');
         },
         (error) => {
-          btnGeo.disabled = false;
-          btnGeo.classList.remove('loading');
-          geoBtnText.textContent = '📍 Capturar Minha Localização Atual';
+          setGpsBusy(false);
+          geoBtnText.textContent = 'Usar minha localização';
+          sheetGpsText.textContent = 'Tentar de novo';
 
           let msg = 'Não foi possível obter a localização.';
-          if (error.code === error.PERMISSION_DENIED) {
-            msg = 'Permissão de localização negada. Habilite o GPS no navegador ou preencha manualmente.';
-          } else if (error.code === error.TIMEOUT) {
-            msg = 'Tempo esgotado ao buscar sinal de GPS.';
-          }
-          showStatus(msg, 'error');
+          if (error.code === error.PERMISSION_DENIED) msg = 'O acesso à localização está bloqueado no navegador.';
+          else if (error.code === error.TIMEOUT)      msg = 'O GPS demorou demais para responder.';
+
+          if (point) setGeoState('locked', labelFor(point));
+          else setGeoState('error', 'Sem sinal');
+
+          if (!sheet.hidden) setSheetHint(`${msg} Toque no mapa para escolher o ponto.`, true);
+          else showStatus(`${msg} Clique no mapa ou digite as coordenadas.`, 'error');
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
+    }
+
+    // No celular o botão abre o mapa (que começa em Campinas); no computador o mapa já está aberto.
+    btnGeo.addEventListener('click', () => {
+      if (!desktopMQ.matches) openSheet();
+      requestGps();
     });
 
-    // 3. Submissão assíncrona para o endpoint formResponse do Google Forms
+    /* ---------- 3. Envio para o Google Forms ---------- */
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      if (!inputLocal.value.trim()) {
+        showStatus('Informe o nome do local para enviar os dados.', 'error');
+        inputLocal.focus();
+        return;
+      }
+      if (!inputLat.value.trim() || !inputLng.value.trim()) {
+        showStatus('Faltam as coordenadas. Use sua localização atual, clique no mapa ou digite manualmente.', 'error');
+        btnGeo.focus();
+        return;
+      }
+
       btnSubmit.disabled = true;
       btnSubmit.classList.add('loading');
-      submitBtnText.textContent = 'Enviando...';
-      statusMessage.style.display = 'none';
+      submitText.textContent = 'Enviando…';
+      hideStatus();
 
       const formData = new FormData(form);
 
       try {
-        // O modo 'no-cors' é obrigatório para requisições client-side diretas ao Google Forms
-        await fetch(FORM_ACTION_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          body: formData
-        });
+        // 'no-cors' é obrigatório para envio direto ao Google Forms pelo navegador
+        await fetch(FORM_ACTION_URL, { method: 'POST', mode: 'no-cors', body: formData });
 
-        showStatus('Dados registrados com sucesso na planilha!', 'success');
+        const now = new Date();
+        const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const local = inputLocal.value.trim();
+
+        btnSubmit.classList.remove('loading');
+        btnSubmit.classList.add('done');
+        submitText.textContent = 'Dados enviados';
+
         form.reset();
-        geoBtnText.textContent = '📍 Capturar Minha Localização Atual';
+        geoBtnText.textContent = 'Usar minha localização';
+        sheetGpsText.textContent = 'Usar minha localização';
+        clearPoint();
+        showStatus(`Dados de ${local} enviados às ${hora}.`, 'success');
+
+        setTimeout(() => {
+          btnSubmit.classList.remove('done');
+          submitText.textContent = 'Enviar dados';
+          btnSubmit.disabled = false;
+        }, 2600);
       } catch (error) {
         console.error('Erro no envio:', error);
-        showStatus('Falha de rede ao enviar os dados. Verifique sua conexão e tente novamente.', 'error');
-      } finally {
-        btnSubmit.disabled = false;
         btnSubmit.classList.remove('loading');
-        submitBtnText.textContent = 'Enviar Dados';
+        btnSubmit.disabled = false;
+        submitText.textContent = 'Enviar dados';
+        showStatus('Sem conexão com a internet. Os dados não foram enviados; tente de novo.', 'error');
       }
     });
   </script>
